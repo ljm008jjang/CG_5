@@ -34,3 +34,19 @@ Ray* Camera::getAntialiasingRay(int ix, int iy) {
 
     return ray;
 }
+
+glm::mat4  Camera::getViewMatrix(){
+    return glm::lookAt(e, e - w, v);
+}
+
+glm::mat4 Camera::getProjectionMatrix() {
+    mat4 proj = mat4(0.0f);
+    proj[0][0] = 2 * nearPlane / (r - l);
+    proj[1][1] = 2 * nearPlane / (t - b);
+    proj[2][0] = (r + l) / (r - l);
+    proj[2][1] = (t + b) / (t - b);
+    proj[2][2] = (farPlane + nearPlane) / (nearPlane - farPlane);
+    proj[2][3] = -1;
+    proj[3][2] = 2 * farPlane * nearPlane / (nearPlane - farPlane);
+	return proj;
+}

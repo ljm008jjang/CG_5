@@ -37,6 +37,10 @@ public:
     //Create Ray
     Ray* getAntialiasingRay(int ix, int iy);
 
+    glm::mat4 getViewMatrix();
+
+    glm::mat4 getProjectionMatrix();
+
 private:
     // Global random number generator
     std::default_random_engine generator;
