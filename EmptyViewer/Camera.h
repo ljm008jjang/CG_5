@@ -23,7 +23,7 @@ public:
     float nearPlane;
     float farPlane;
 
-    float l = -0.1f, r = 0.1f, b = -0.1f, t = 0.1f, d = 0.1f;
+    float l = -0.1f, r = 0.1f, b = -0.1f, t = 0.1f;
 
 
     Camera(glm::vec3 startPosition, glm::vec3 startUp, glm::vec3 startRight, glm::vec3 startForward, float startFov, float startAspectRatio, float startNearPlane, float startFarPlane)
@@ -40,6 +40,9 @@ public:
     glm::mat4 getViewMatrix();
 
     glm::mat4 getProjectionMatrix();
+
+    bool isInFrustum(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2);
+
 
 private:
     // Global random number generator

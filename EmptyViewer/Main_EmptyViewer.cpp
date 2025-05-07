@@ -34,20 +34,22 @@ int Width = 512;
 int Height = 512;
 std::vector<float> OutputImage;
 // -------------------------------------------------
+//Camera camera(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f), vec3(1.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 1.0f), 45.0f, (float)Width / (float)Height, -0.1f, -1000.0f);
 Camera camera(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f), vec3(1.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 1.0f), 45.0f, (float)Width / (float)Height, -0.1f, -1000.0f);
 std::vector<float> DepthBuffer;
 
 sphere_scene sphere;
 std::vector<sphere_scene> sceneObjects;
 
-void rasterize_triangle(const vec3& v0, const vec3& v1, const vec3& v2, const vec3& normal, const vec3& lightDir) {
+void rasterize_triangle(const vec3& screen0, const vec3& screen1, const vec3& screen2, const vec3& normal, const vec3& lightDir) {
+	//cross product
 	auto edge = [](const vec2& a, const vec2& b, const vec2& c) {
 		return (c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x);
 		};
 
-	vec2 p0 = v0.xy();
-	vec2 p1 = v1.xy();
-	vec2 p2 = v2.xy();
+	vec2 p0 = screen0.xy();
+	vec2 p1 = screen1.xy();
+	vec2 p2 = screen2.xy();
 
 	float area = edge(p0, p1, p2);
 	if (area == 0) return;
@@ -57,19 +59,25 @@ void rasterize_triangle(const vec3& v0, const vec3& v1, const vec3& v2, const ve
 	int minY = std::max(0, (int)floor(min({ p0.y, p1.y, p2.y })));
 	int maxY = std::min(Height - 1, (int)ceil(max({ p0.y, p1.y, p2.y })));
 
+	float invArea = 1.0f / area;
+	vec2 start(minX + 0.5f, minY + 0.5f);
+	float startBeta = edge(p2, p0, start) * invArea; //(((p0.y - p2.y) * minX + (p2.x - p0.x) * minY + p0.x * p2.y - p2.x * p0.y)) / ((p0.y - p2.y) * p1.x + (p2.x - p0.x) * p1.y + p0.x * p2.y - p2.x * p0.y);
+	float startGamma = edge(p0, p1, start) * invArea;//(((p0.y - p1.y) * minX + (p1.x - p0.x) * minY + p0.x * p1.y - p1.x * p0.y)) / ((p0.y - p1.y) * p2.x + (p1.x - p0.x) * p2.y + p0.x * p1.y - p1.x * p0.y);
+	float n = (minX - minX) + 1;
+
+	float betaX = (p0.y - p2.y) * invArea;
+	float gammaX = (p1.y - p0.y) * invArea;
+
+	float betaY = ((p2.x - p0.x) * invArea);
+	float gammaY = ((p0.x - p1.x) * invArea);
+
+	float beta = startBeta;
+	float gamma = startGamma;
+
 	for (int y = minY; y <= maxY; ++y) {
 		for (int x = minX; x <= maxX; ++x) {
-			vec2 p(x + 0.5f, y + 0.5f);
-			float w0 = edge(p1, p2, p);
-			float w1 = edge(p2, p0, p);
-			float w2 = edge(p0, p1, p);
-
-			if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
-				w0 /= area;
-				w1 /= area;
-				w2 /= area;
-
-				float z = w0 * v0.z + w1 * v1.z + w2 * v2.z;
+			if (beta > 0 && gamma > 0 && beta+gamma < 1) {
+				float z = (screen0.z * beta + screen1.z * gamma + screen2.z * (1 - beta - gamma));
 				int idx = y * Width + x;
 				if (z < DepthBuffer[idx]) {
 					DepthBuffer[idx] = z;
@@ -82,9 +90,22 @@ void rasterize_triangle(const vec3& v0, const vec3& v1, const vec3& v2, const ve
 					OutputImage[idx * 3 + 2] = color.b;
 				}
 			}
-		}
+			  // x에 대한 β, γ 갱신
+            beta += betaX;
+            gamma += gammaX;
+        }
+
+        // y에 대한 β, γ 갱신
+        startBeta += betaY;
+        startGamma += gammaY;
+
+        // 다음 행을 위한 초기값 설정
+        beta = startBeta;
+        gamma = startGamma;
 	}
 }
+
+
 
 void render()
 {
@@ -108,7 +129,7 @@ void render()
 	}
 
 	// 1. Model Transform
-	mat4 model = translate(mat4(1.0f), vec3(0, 0, 7)) * scale(mat4(1.0f), vec3(2.0f));
+	mat4 model = translate(mat4(1.0f), vec3(0, 0, -7)) * scale(mat4(1.0f), vec3(2.0f));
 
 	// 2. View Transform (Identity)
 	mat4 view = camera.getViewMatrix();
@@ -116,6 +137,14 @@ void render()
 	// 3. Perspective Projection (사용자 정의)
 	// 직접 만든 Perspective 행렬 (OpenGL 호환 버전)
 	mat4 proj = camera.getProjectionMatrix();
+
+	//mat4 vp(0.0f);
+	//vp[0][0] = Width / 2.0f;
+	//vp[1][1] = Height / 2.0f;
+	//vp[2][2] = 1.0f;
+	//vp[3][0] = (Width - 1) / 2.0f;
+	//vp[3][1] = (Height - 1) / 2.0f;
+	//vp[3][3] = 1.0f;
 
 	// 4. 최종 MVP
 	mat4 MVP = proj * view * model;
@@ -125,24 +154,23 @@ void render()
 
 	for (sphere_scene& sceneObject : sceneObjects) {
 		for (int i = 0; i < sceneObject.gNumTriangles; ++i) {
-			vec3 v0;
-			vec3 v1;
-			vec3 v2;
-
-			vec3 screen0;
-			vec3 screen1;
-			vec3 screen2;
+			vec3 v0, v1, v2;
+			vec3 screen0, screen1, screen2;
 
 			//벡터를	가져온다
-			sceneObject.render(MVP, Width, Height, &v0, &v1, &v2, &screen0, &screen1, &screen2, i);
+			sceneObject.process_triangle(MVP, model, Width, Height, &v0, &v1, &v2, &screen0, &screen1, &screen2, i);
 
 			//back face culling
 			vec3 faceNormal = normalize(cross(v1 - v0, v2 - v0));
 			vec3 center = (v0 + v1 + v2) / 3.0f;          // 삼각형 중심
 			vec3 viewDir = normalize(camera.e - center);
 
-			if (dot(faceNormal, viewDir) >= 0)
+			if (dot(faceNormal, viewDir) > 0)
 				continue; // back-face culling
+
+			if (camera.isInFrustum(v0, v1, v2) == false) {
+				continue;
+			}
 
 			rasterize_triangle(screen0, screen1, screen2, normalize(cross(v1 - v0, v2 - v0)), lightDir);
 		}

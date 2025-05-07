@@ -118,28 +118,35 @@ public:
         // add 1 to k0, k1, and k2.
     }
 
-    void render(mat4 MVP,int Width, int Height,vec3* v0, vec3* v1, vec3* v2, vec3* screen0, vec3* screen1, vec3* screen2, int i) {
+    void process_triangle(mat4 MVP,mat4 model, int Width, int Height,vec3* v0, vec3* v1, vec3* v2, vec3* screen0, vec3* screen1, vec3* screen2, int i) {
 
         int k0 = gIndexBuffer[3 * i + 0];
         int k1 = gIndexBuffer[3 * i + 1];
         int k2 = gIndexBuffer[3 * i + 2];
 
-        *v0 = vec3(gVertexBuffer[3 * k0 + 0], gVertexBuffer[3 * k0 + 1], gVertexBuffer[3 * k0 + 2]);
-        *v1 = vec3(gVertexBuffer[3 * k1 + 0], gVertexBuffer[3 * k1 + 1], gVertexBuffer[3 * k1 + 2]);
-        *v2 = vec3(gVertexBuffer[3 * k2 + 0], gVertexBuffer[3 * k2 + 1], gVertexBuffer[3 * k2 + 2]);
+        vec3 p0 = vec3(gVertexBuffer[3 * k0 + 0], gVertexBuffer[3 * k0 + 1], gVertexBuffer[3 * k0 + 2]);
+        vec3 p1 = vec3(gVertexBuffer[3 * k1 + 0], gVertexBuffer[3 * k1 + 1], gVertexBuffer[3 * k1 + 2]);
+        vec3 p2 = vec3(gVertexBuffer[3 * k2 + 0], gVertexBuffer[3 * k2 + 1], gVertexBuffer[3 * k2 + 2]);
 
-        vec4 clip0 = MVP * vec4(*v0, 1.0f);
-        vec4 clip1 = MVP * vec4(*v1, 1.0f);
-        vec4 clip2 = MVP * vec4(*v2, 1.0f);
+        *v0 = vec3(model * vec4(p0, 1.0f));
+        *v1 = vec3(model * vec4(p1, 1.0f));
+        *v2 = vec3(model * vec4(p2, 1.0f));
 
-        vec3 ndc0 = vec3(clip0) / clip0.w;
-        vec3 ndc1 = vec3(clip1) / clip1.w;
-        vec3 ndc2 = vec3(clip2) / clip2.w;
+        vec4 clip0 = MVP * vec4(p0, 1.0f);
+        vec4 clip1 = MVP * vec4(p1, 1.0f);
+        vec4 clip2 = MVP * vec4(p2, 1.0f);
 
-        *screen0 = vec3((ndc0.x * 0.5f + 0.5f) * Width, (1 - (ndc0.y * 0.5f + 0.5f)) * Height, ndc0.z);
-        *screen1 = vec3((ndc1.x * 0.5f + 0.5f) * Width, (1 - (ndc1.y * 0.5f + 0.5f)) * Height, ndc1.z);
-        *screen2 = vec3((ndc2.x * 0.5f + 0.5f) * Width, (1 - (ndc2.y * 0.5f + 0.5f)) * Height, ndc2.z);
+        mat4 vp(0.0f);
+        vp[0][0] = Width / 2.0f;
+        vp[1][1] = Height / 2.0f;
+        vp[2][2] = 1.0f;
+        vp[3][0] = (Width - 1) / 2.0f;
+        vp[3][1] = (Height - 1) / 2.0f;
+        vp[3][3] = 1.0f;
 
+        *screen0 = vec3(vp * (clip0 / clip0.w));
+        *screen1 = vec3(vp * (clip1 / clip1.w));
+        *screen2 = vec3(vp * (clip2 / clip2.w));
     }
     
 };
