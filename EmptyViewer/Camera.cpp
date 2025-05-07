@@ -45,12 +45,13 @@ glm::mat4 Camera::getProjectionMatrix() {
     proj[1][1] = 2 * nearPlane / (t - b);
     proj[2][0] = (r + l) / (l - r);
     proj[2][1] = (t + b) / (b - t);
-    proj[2][2] = (farPlane + nearPlane) / (nearPlane - farPlane); // <- 부호 수정
+    proj[2][2] = (farPlane + nearPlane) / (nearPlane - farPlane);
     proj[2][3] = 1.0f;
-    proj[3][2] = (2 * farPlane * nearPlane) / (farPlane - nearPlane); // <- 부호 수정
+    proj[3][2] = (2 * farPlane * nearPlane) / (farPlane - nearPlane);
     return proj;
 }
 
+//helped by chatGPT
 bool Camera::isInFrustum(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2) {
     // nearPlane, farPlane이 음수일 때, 부호를 반대로 고려해야 함.
     float near = nearPlane < 0 ? farPlane : nearPlane;  // nearPlane이 음수일 때 farPlane의 값으로 바꾸는 방식
@@ -62,9 +63,6 @@ bool Camera::isInFrustum(const glm::vec3& v0, const glm::vec3& v1, const glm::ve
         v2.z < near || v2.z > far) {
         return false; // 삼각형이 카메라의 근평면 또는 원평면 외에 있음
     }
-
-    // 추가적으로 좌표계 내에서, 카메라의 시야 범위 안에 있는지 체크하는 로직을 구현할 수 있습니다.
-    // 예를 들어, 뷰 프러스텀의 각 평면을 기준으로 체크할 수 있습니다.
 
     return true;
 }

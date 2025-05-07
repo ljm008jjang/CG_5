@@ -41,8 +41,9 @@ std::vector<float> DepthBuffer;
 sphere_scene sphere;
 std::vector<sphere_scene> sceneObjects;
 
+//helped by chatGPT
 void rasterize_triangle(const vec3& screen0, const vec3& screen1, const vec3& screen2, const vec3& normal, const vec3& lightDir) {
-	//cross product
+	// cross product
 	auto edge = [](const vec2& a, const vec2& b, const vec2& c) {
 		return (c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x);
 		};
@@ -61,6 +62,9 @@ void rasterize_triangle(const vec3& screen0, const vec3& screen1, const vec3& sc
 
 	float invArea = 1.0f / area;
 	vec2 start(minX + 0.5f, minY + 0.5f);
+	// alpha, beta, gamma는 모두 삼각형의 넓이의 비율과 관련이 있다.
+	// 주석처리된 공식과 사용된 공식은 같은 의미.
+	// 수업 자료는 후자 공식이지만, 코드의 편의성을 위해 앞 공식을 사용한다.
 	float startBeta = edge(p2, p0, start) * invArea; //(((p0.y - p2.y) * minX + (p2.x - p0.x) * minY + p0.x * p2.y - p2.x * p0.y)) / ((p0.y - p2.y) * p1.x + (p2.x - p0.x) * p1.y + p0.x * p2.y - p2.x * p0.y);
 	float startGamma = edge(p0, p1, start) * invArea;//(((p0.y - p1.y) * minX + (p1.x - p0.x) * minY + p0.x * p1.y - p1.x * p0.y)) / ((p0.y - p1.y) * p2.x + (p1.x - p0.x) * p2.y + p0.x * p1.y - p1.x * p0.y);
 	float n = (minX - minX) + 1;
@@ -82,8 +86,9 @@ void rasterize_triangle(const vec3& screen0, const vec3& screen1, const vec3& sc
 				if (z < DepthBuffer[idx]) {
 					DepthBuffer[idx] = z;
 
+					//빛을 고려 안함.
 					float brightness = 1;//std::max(0.0f, dot(normal, normalize(lightDir)));
-					vec3 color = brightness * vec3(1.0f); // 흰색 Lambert
+					vec3 color = brightness * vec3(1.0f);
 
 					OutputImage[idx * 3 + 0] = color.r;
 					OutputImage[idx * 3 + 1] = color.g;
@@ -102,6 +107,9 @@ void rasterize_triangle(const vec3& screen0, const vec3& screen1, const vec3& sc
         // 다음 행을 위한 초기값 설정
         beta = startBeta;
         gamma = startGamma;
+
+		// 수업 자료의 sudo코드를 그대로 사용하면 오류 발생.
+		// 부동소수점이 문제이지 않을까 싶다.
 	}
 }
 
@@ -138,14 +146,6 @@ void render()
 	// 직접 만든 Perspective 행렬 (OpenGL 호환 버전)
 	mat4 proj = camera.getProjectionMatrix();
 
-	//mat4 vp(0.0f);
-	//vp[0][0] = Width / 2.0f;
-	//vp[1][1] = Height / 2.0f;
-	//vp[2][2] = 1.0f;
-	//vp[3][0] = (Width - 1) / 2.0f;
-	//vp[3][1] = (Height - 1) / 2.0f;
-	//vp[3][3] = 1.0f;
-
 	// 4. 최종 MVP
 	mat4 MVP = proj * view * model;
 
@@ -157,21 +157,23 @@ void render()
 			vec3 v0, v1, v2;
 			vec3 screen0, screen1, screen2;
 
-			//벡터를	가져온다
+			//삼각형 점 좌표, 화면 좌표를 가져온다
 			sceneObject.process_triangle(MVP, model, Width, Height, &v0, &v1, &v2, &screen0, &screen1, &screen2, i);
 
-			//back face culling
-			vec3 faceNormal = normalize(cross(v1 - v0, v2 - v0));
-			vec3 center = (v0 + v1 + v2) / 3.0f;          // 삼각형 중심
-			vec3 viewDir = normalize(camera.e - center);
-
-			if (dot(faceNormal, viewDir) > 0)
-				continue; // back-face culling
-
+			//절두체 체크
 			if (camera.isInFrustum(v0, v1, v2) == false) {
 				continue;
 			}
 
+			//back face culling
+			vec3 faceNormal = normalize(cross(v1 - v0, v2 - v0));
+			vec3 center = (v0 + v1 + v2) / 3.0f;
+			vec3 viewDir = normalize(camera.e - center);
+
+			if (dot(faceNormal, viewDir) > 0) {
+				continue; // back-face culling
+			}
+			//레스터링
 			rasterize_triangle(screen0, screen1, screen2, normalize(cross(v1 - v0, v2 - v0)), lightDir);
 		}
 	}
