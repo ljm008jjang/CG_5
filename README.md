@@ -18,8 +18,10 @@ code of calc triangle's world position and screen position.
 ![image](https://github.com/user-attachments/assets/67ea3c1b-7ddc-421a-a12c-cbc9aa13c03b)
 
 The code is based on the course materials, but for the sake of code convenience, different code with the same meaning has been used in some parts.
+use perspective-correct z.
 For a detailed explanation, please refer to the comments.
-![image](https://github.com/user-attachments/assets/3abb0ec2-9e53-4589-ab14-5dc5f50ed0b2)
+![image](https://github.com/user-attachments/assets/57e07005-d771-4973-9449-5e234e35bceb)
+
 
 
 
