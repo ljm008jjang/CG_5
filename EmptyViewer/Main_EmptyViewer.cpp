@@ -42,11 +42,11 @@ sphere_scene sphere;
 std::vector<sphere_scene> sceneObjects;
 
 //helped by chatGPT
-void rasterize_triangle(const vec3& screen0, const vec3& screen1, const vec3& screen2, const vec3& normal, const vec3& lightDir) {
+void rasterize_triangle(const vec3& screen0, const vec3& screen1, const vec3& screen2, const float& invW0, const float& invW1, const float& invW2, const vec3& normal, const vec3& lightDir) {
 	// cross product
 	auto edge = [](const vec2& a, const vec2& b, const vec2& c) {
 		return (c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x);
-		};
+	};
 
 	vec2 p0 = screen0.xy();
 	vec2 p1 = screen1.xy();
@@ -80,8 +80,12 @@ void rasterize_triangle(const vec3& screen0, const vec3& screen1, const vec3& sc
 
 	for (int y = minY; y <= maxY; ++y) {
 		for (int x = minX; x <= maxX; ++x) {
-			if (beta > 0 && gamma > 0 && beta+gamma < 1) {
-				float z = (screen0.z * beta + screen1.z * gamma + screen2.z * (1 - beta - gamma));
+			if (beta > 0 && gamma > 0 && beta + gamma < 1) {
+
+				// 보간 (β, γ는 이미 화면 좌표 기준에서 구해졌다고 가정)
+				float invZ = beta * invW0 + gamma * invW1 + (1 - beta - gamma) * invW2;
+				float z = 1.0f / invZ; // perspective-correct z
+				//float z = (screen0.z * beta + screen1.z * gamma + screen2.z * (1 - beta - gamma));
 				int idx = y * Width + x;
 				if (z < DepthBuffer[idx]) {
 					DepthBuffer[idx] = z;
@@ -95,18 +99,18 @@ void rasterize_triangle(const vec3& screen0, const vec3& screen1, const vec3& sc
 					OutputImage[idx * 3 + 2] = color.b;
 				}
 			}
-			  // x에 대한 β, γ 갱신
-            beta += betaX;
-            gamma += gammaX;
-        }
+			// x에 대한 β, γ 갱신
+			beta += betaX;
+			gamma += gammaX;
+		}
 
-        // y에 대한 β, γ 갱신
-        startBeta += betaY;
-        startGamma += gammaY;
+		// y에 대한 β, γ 갱신
+		startBeta += betaY;
+		startGamma += gammaY;
 
-        // 다음 행을 위한 초기값 설정
-        beta = startBeta;
-        gamma = startGamma;
+		// 다음 행을 위한 초기값 설정
+		beta = startBeta;
+		gamma = startGamma;
 
 		// 수업 자료의 sudo코드를 그대로 사용하면 오류 발생.
 		// 부동소수점이 문제이지 않을까 싶다.
@@ -130,7 +134,7 @@ void render()
 	DepthBuffer.assign(Width * Height, 1e9f);
 	sceneObjects.push_back(sphere);
 
-	for(sphere_scene& sceneObject : sceneObjects)
+	for (sphere_scene& sceneObject : sceneObjects)
 	{
 		sceneObject.clear();
 		sceneObject.create_scene();
@@ -156,9 +160,10 @@ void render()
 		for (int i = 0; i < sceneObject.gNumTriangles; ++i) {
 			vec3 v0, v1, v2;
 			vec3 screen0, screen1, screen2;
+			float invW0, invW1, invW2;
 
 			//삼각형 점 좌표, 화면 좌표를 가져온다
-			sceneObject.process_triangle(MVP, model, Width, Height, &v0, &v1, &v2, &screen0, &screen1, &screen2, i);
+			sceneObject.process_triangle(MVP, model, Width, Height, &v0, &v1, &v2, &screen0, &screen1, &screen2, &invW0, &invW1, &invW2, i);
 
 			//절두체 체크
 			if (camera.isInFrustum(v0, v1, v2) == false) {
@@ -174,7 +179,7 @@ void render()
 				continue; // back-face culling
 			}
 			//레스터링
-			rasterize_triangle(screen0, screen1, screen2, normalize(cross(v1 - v0, v2 - v0)), lightDir);
+			rasterize_triangle(screen0, screen1, screen2, invW0, invW1, invW2, normalize(cross(v1 - v0, v2 - v0)), lightDir);
 		}
 	}
 
@@ -192,7 +197,7 @@ void render()
 }
 
 
-void resize_callback(GLFWwindow*, int nw, int nh) 
+void resize_callback(GLFWwindow*, int nw, int nh)
 {
 	//This is called in response to the window resizing.
 	//The new width and height are passed in so we make 
